@@ -1,5 +1,11 @@
+-- =========================================
+-- SELECT DOTAZY – semestralni projekt
+-- Databaze: videohernipostavy
+-- =========================================
+
+USE videohernipostavy;
+
 -- SELECT 1
--- Tento dotaz spočítá počet řádků v každé tabulce a z těchto hodnot vypočítá průměrný počet záznamů na jednu tabulku.
 SELECT
     AVG(pocet_radku) AS prumerny_pocet_zaznamu_na_tabulku
 FROM (
@@ -21,8 +27,6 @@ FROM (
 ) t;
 
 -- SELECT 2
--- Tento dotaz nejprve spočítá, kolik postav má každá třída, z těchto hodnot vypočítá průměrný počet postav na třídu a následně vrátí pouze ty postavy, které patří do tříd s
-nadprůměrným počtem postav.
 SELECT
     p.Postava_ID,
     p.Jmeno,
@@ -43,13 +47,7 @@ WHERE p.Trida_ID IN (
     )
 );
 
--- SELECT 3 – Analyticka funkce (OVER) + GROUP BY
--- Tento dotaz pracuje s dovednostmi postav.
--- Pomoci GROUP BY spocitam, kolik postav ma kazdou dovednost.
--- Analyticka funkce COUNT() OVER() vrati celkovy pocet vsech prirazeni dovednosti v databazi.
--- Analyticka funkce AVG() OVER() vypocita prumerny pocet prirazeni na jednu dovednost.
--- OVER() zajisti, ze se analyticke hodnoty pocitaji pres cely vysledek,
--- ale pritom se nezrusi skupiny vytvorene pomoci GROUP BY.
+-- SELECT 3
 SELECT
     d.Dovednost_ID,
     d.Nazev AS dovednost,
@@ -63,7 +61,6 @@ GROUP BY d.Dovednost_ID, d.Nazev
 ORDER BY pocet_postav_s_dovednosti DESC;
 
 -- SELECT 4
--- Rekurzivni CTE postupne sklada hierarchii postav od hlavni postavy az po nejhlubsi podrizene.
 WITH RECURSIVE hierarchie AS (
     SELECT
         p.Postava_ID,
@@ -88,4 +85,44 @@ SELECT
     uroven
 FROM hierarchie
 ORDER BY uroven, Postava_ID;
+
+-- VIEW
+SELECT * FROM v_postavy_prehled;
+
+-- FUNKCE
+SELECT
+    Jmeno,
+    pocet_vybaveni(Postava_ID) AS pocet_vybaveni
+FROM postavy;
+
+-- BONUSY
+SELECT * FROM bonusy_postav;
+
+
+-- =========================================
+-- VIEW – Podstatne informace z vice tabulek
+-- Prehled: postava + trida + dovednosti + vybaveni (bez cizich klicu)
+-- INNER JOIN = povinna trida, LEFT JOIN = volitelne dovednosti/vybaveni
+-- =========================================
+
+CREATE OR REPLACE VIEW v_postavy_prehled AS
+SELECT
+    p.Jmeno AS Postava,
+    t.Nazev AS Trida,
+    GROUP_CONCAT(DISTINCT d.Nazev ORDER BY d.Nazev SEPARATOR ', ') AS Dovednosti,
+    GROUP_CONCAT(DISTINCT v.Nazev ORDER BY v.Nazev SEPARATOR ', ') AS Vybaveni
+FROM postavy p
+INNER JOIN tridy t
+    ON p.Trida_ID = t.Trida_ID
+LEFT JOIN dovednostipostavy dp
+    ON dp.Postava_ID = p.Postava_ID
+LEFT JOIN dovednosti d
+    ON d.Dovednost_ID = dp.Dovednost_ID
+LEFT JOIN vybavenipostavy vp
+    ON vp.Postava_ID = p.Postava_ID
+LEFT JOIN vybaveni v
+    ON v.Vybaveni_ID = vp.Vybaveni_ID
+GROUP BY
+    p.Jmeno,
+    t.Nazev;
 
